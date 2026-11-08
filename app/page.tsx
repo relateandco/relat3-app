@@ -23,8 +23,8 @@ interface ActionItem {
   id: string;
   task: string;
   department: string;
-  startDate: string; // วันที่เริ่ม
-  dueDate: string;   // วันที่สิ้นสุด
+  startDate: string;
+  dueDate: string;
   completed: boolean;
 }
 
@@ -125,7 +125,7 @@ export default function HomePreview() {
 
   const recognitionRef = useRef<any>(null);
   const mediaStreamRef = useRef<MediaStream | null>(null);
-  const baseTranscriptRef = useRef<string>("");
+  const finalTranscriptRef = useRef<string>("");
 
   useEffect(() => {
     const savedDepts = localStorage.getItem("relat3_departments");
@@ -154,7 +154,6 @@ export default function HomePreview() {
     if (savedTasks) {
       try {
         const parsed = JSON.parse(savedTasks);
-        // แปลงรูปแบบข้อมูลเก่าให้มี startDate
         const updated = parsed.map((item: any) => ({
           ...item,
           startDate: item.startDate || item.dueDate || "2026-11-08",
@@ -228,7 +227,7 @@ export default function HomePreview() {
     saveMeetingRecords([newRecord, ...meetingRecords]);
     setTranscript("");
     setMeetingTitle("");
-    baseTranscriptRef.current = "";
+    finalTranscriptRef.current = "";
     alert(`บันทึกการประชุมวันที่ ${newRecord.date} เรียบร้อยแล้ว!`);
   };
 
@@ -245,7 +244,6 @@ export default function HomePreview() {
     return matchDate && matchDept;
   });
 
-  // แยกวิเคราะห์และค้นหาวันที่เริ่ม - สิ้นสุดอัตโนมัติ
   const handleOpenExtractFromRecord = (record: MeetingRecord) => {
     setActiveRecordForExtract(record);
 
@@ -338,7 +336,6 @@ export default function HomePreview() {
     setNewTask("");
   };
 
-  // ส่งช่วงวันที่เข้า Google Calendar
   const handleSyncGoogleCalendar = (item: ActionItem) => {
     const title = encodeURIComponent(`[${item.department}] ${item.task}`);
     const details = encodeURIComponent(
@@ -347,7 +344,6 @@ export default function HomePreview() {
 
     const startFormatted = item.startDate ? item.startDate.replace(/-/g, "") : item.dueDate.replace(/-/g, "");
 
-    // สำหรับวันสิ้นสุด ให้ +1 วันเพื่อให้ Google Calendar ครอบคลุมทั้งวันสุดท้าย
     const endDateObj = new Date(item.dueDate);
     endDateObj.setDate(endDateObj.getDate() + 1);
     const endFormatted = endDateObj.toISOString().slice(0, 10).replace(/-/g, "");
@@ -357,7 +353,6 @@ export default function HomePreview() {
     window.open(calendarUrl, "_blank");
   };
 
-  // สร้างข้อความสรุปภาพรวม
   const buildSummaryString = (targetDate: string) => {
     const targetDateLabel = targetDate ? `ประจำวันที่: ${targetDate}` : "ทั้งหมดทุกวัน";
     let text = `📌 [Relate & Co.] สรุปภาพรวมการประชุมรวมทุกแผนก\n📅 ${targetDateLabel}\n`;
@@ -425,7 +420,7 @@ export default function HomePreview() {
       return;
     }
     navigator.clipboard.writeText(editableSummaryText);
-    alert("คัดลอกข้อความสรุปการประชุมเรียบร้อยแล้ว! สามารถนำไปวางแชร์ได้ทันทีครับ");
+    alert("คัดลอกข้อความสรุปการประชุมเรียบร้อยแล้ว!");
   };
 
   const displayedActionItems = actionItemFilterDate
@@ -434,6 +429,7 @@ export default function HomePreview() {
       )
     : actionItems;
 
+  // ตั้งค่า Speech Recognition แก้ปัญหาการเบิ้ลคำ และขยายการรับเสียง
   useEffect(() => {
     if (typeof window !== "undefined") {
       const SpeechRecognition =
@@ -446,16 +442,26 @@ export default function HomePreview() {
         recognition.lang = language;
 
         recognition.onresult = (event: any) => {
-          let currentSpoken = "";
-          for (let i = 0; i < event.results.length; i++) {
-            currentSpoken += event.results[i][0].transcript;
+          let interimTranscript = "";
+
+          for (let i = event.resultIndex; i < event.results.length; ++i) {
+            const transcriptChunk = event.results[i][0].transcript;
+            if (event.results[i].isFinal) {
+              finalTranscriptRef.current += transcriptChunk + " ";
+            } else {
+              interimTranscript += transcriptChunk;
+            }
           }
-          const prefix = baseTranscriptRef.current ? baseTranscriptRef.current + " " : "";
-          setTranscript(prefix + currentSpoken);
+
+          const combined = (finalTranscriptRef.current + interimTranscript).trim();
+          setTranscript(combined);
         };
 
         recognition.onerror = (event: any) => {
-          console.error("Speech error:", event.error);
+          console.error("Speech recognition error:", event.error);
+          if (event.error === "not-allowed") {
+            alert("กรุณาอนุญาตสิทธิ์การใช้งานไมโครโฟนในเบราว์เซอร์");
+          }
           setIsRecording(false);
         };
 
@@ -468,24 +474,50 @@ export default function HomePreview() {
     }
   }, [language]);
 
-  const toggleInPersonRecording = () => {
+  // เริ่มบันทึกการประชุมต่อหน้า (ปลดล็อกฟิลเตอร์ไมค์เพื่อรับเสียงคนรอบโต๊ะ)
+  const toggleInPersonRecording = async () => {
     if (!recognitionRef.current) {
-      alert("กรุณาเปิดผ่าน Google Chrome เพื่อใช้งานระบบบันทึกเสียง");
+      alert("เบราว์เซอร์นี้ยังไม่รองรับระบบถอดเสียง กรุณาใช้ Chrome หรือ Safari");
       return;
     }
 
     if (isRecording) {
-      recognitionRef.current.stop();
-      setIsRecording(false);
-      baseTranscriptRef.current = transcript;
-    } else {
       try {
-        baseTranscriptRef.current = transcript;
-        recognitionRef.current.start();
-        setIsRecording(true);
-      } catch (e) {
-        console.error(e);
+        recognitionRef.current.stop();
+      } catch (e) {}
+
+      if (mediaStreamRef.current) {
+        mediaStreamRef.current.getTracks().forEach((track) => track.stop());
+        mediaStreamRef.current = null;
       }
+      setIsRecording(false);
+      return;
+    }
+
+    try {
+      finalTranscriptRef.current = transcript ? transcript + "\n" : "";
+
+      // ขอสิทธิ์ไมโครโฟนแบบปิดระบบตัดเสียงรอบข้าง เพื่อให้ได้ยินเสียงคนรอบข้างในการประชุม
+      if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+        try {
+          const stream = await navigator.mediaDevices.getUserMedia({
+            audio: {
+              echoCancellation: false,
+              noiseSuppression: false,
+              autoGainControl: true,
+            },
+          });
+          mediaStreamRef.current = stream;
+        } catch (micErr) {
+          console.warn("ไม่สามารถปรับตั้งค่าไมค์ระดับลึกได้ จะใช้การเปิดไมค์มาตรฐาน:", micErr);
+        }
+      }
+
+      recognitionRef.current.start();
+      setIsRecording(true);
+    } catch (e) {
+      console.error(e);
+      setIsRecording(false);
     }
   };
 
@@ -496,12 +528,11 @@ export default function HomePreview() {
         mediaStreamRef.current.getTracks().forEach((track) => track.stop());
       }
       setIsRecording(false);
-      baseTranscriptRef.current = transcript;
       return;
     }
 
     try {
-      baseTranscriptRef.current = transcript;
+      finalTranscriptRef.current = transcript ? transcript + "\n" : "";
       const displayStream = await navigator.mediaDevices.getDisplayMedia({
         video: true,
         audio: true,
@@ -541,6 +572,7 @@ export default function HomePreview() {
       setUploadedFile(file);
       const addedText = `[ไฟล์: ${file.name} - แผนก ${selectedDepartment}]\n`;
       setTranscript((prev) => (prev ? prev + "\n" + addedText : addedText));
+      finalTranscriptRef.current += addedText;
     }
   };
 
@@ -579,7 +611,7 @@ export default function HomePreview() {
                 </h2>
               </div>
               <p className="text-xs text-[#8C7A78] mt-0.5">
-                เลือกวันที่เพื่อดูสรุปของวันนั้นๆ และสามารถคลิกพิมพ์แก้ไขข้อความในกล่องด้านล่างได้โดยตรงก่อนกดแชร์
+                เลือกวันที่เพื่อดูสรุป และคลิกพิมพ์แก้ไขข้อความในกล่องด้านล่างได้โดยตรงก่อนกดแชร์
               </p>
             </div>
 
@@ -649,7 +681,7 @@ export default function HomePreview() {
           </div>
         </section>
 
-        {/* ส่วนที่ 1: บันทึกเสียงและกรอกข้อมูลรายวัน */}
+        {/* ส่วนที่ 1: บันทึกเสียงและถอดความ */}
         <section className="bg-white rounded-2xl p-6 shadow-sm border border-[#EFE8E2]">
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-5 pb-4 border-b border-[#F7F2EE]">
             <div>
@@ -740,9 +772,12 @@ export default function HomePreview() {
 
           {meetingMode === "in-person" && (
             <div className="flex flex-col items-center justify-center p-6 border-2 border-dashed border-[#E8DFD8] rounded-xl bg-[#FCFAF8] mb-4">
-              <p className="text-xs text-[#8C7A78] mb-3 text-center">
+              <p className="text-xs text-[#8C7A78] mb-1 text-center">
                 บันทึกการประชุมสำหรับแผนก: <strong className="text-[#5C4F4D]">{selectedDepartment}</strong> (วันที่ {recordDate})
               </p>
+              <span className="text-[11px] text-[#A89895] mb-3 text-center">
+                *ระบบตั้งค่าเปิดรับเสียงรอบข้างสำหรับวางมือถือไว้กลางโต๊ะประชุม
+              </span>
               <button
                 type="button"
                 onClick={toggleInPersonRecording}
@@ -815,7 +850,7 @@ export default function HomePreview() {
               value={transcript}
               onChange={(e) => {
                 setTranscript(e.target.value);
-                baseTranscriptRef.current = e.target.value;
+                finalTranscriptRef.current = e.target.value;
               }}
               placeholder={`พิมพ์หรือพูดเนื้อหาการประชุมที่นี่ (ขึ้นบรรทัดใหม่เมื่อขึ้นประเด็นใหม่)...`}
               rows={4}
@@ -829,7 +864,7 @@ export default function HomePreview() {
                   onClick={() => {
                     setTranscript("");
                     setMeetingTitle("");
-                    baseTranscriptRef.current = "";
+                    finalTranscriptRef.current = "";
                   }}
                   className="text-xs text-[#C45E5E] hover:underline cursor-pointer"
                 >
@@ -850,7 +885,7 @@ export default function HomePreview() {
           </div>
         </section>
 
-        {/* ส่วนที่ 2: คลังบันทึกการประชุมรายวัน (Archive & Date Filter) */}
+        {/* ส่วนที่ 2: คลังบันทึกการประชุมรายวัน */}
         <section className="bg-white rounded-2xl p-6 shadow-sm border border-[#EFE8E2]">
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-5 pb-4 border-b border-[#F7F2EE]">
             <div>
@@ -977,7 +1012,7 @@ export default function HomePreview() {
           </div>
         </section>
 
-        {/* ส่วนที่ 3: กำหนดการและสิ่งที่ต้องติดตาม (Key Dates & Follow-ups) - มีทั้งวันเริ่มและวันสิ้นสุด */}
+        {/* ส่วนที่ 3: กำหนดการและช่วงเวลาสำคัญ (Key Dates & Follow-ups) */}
         <section className="bg-white rounded-2xl p-6 shadow-sm border border-[#EFE8E2]">
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-4 pb-3 border-b border-[#F7F2EE]">
             <div>
@@ -1011,7 +1046,6 @@ export default function HomePreview() {
             </div>
           </div>
 
-          {/* ฟอร์มเพิ่มกำหนดการ (ระบุวันเริ่ม - วันสิ้นสุด) */}
           <form
             onSubmit={handleCreateTask}
             className="grid grid-cols-1 sm:grid-cols-12 gap-2 mb-5 bg-[#FAF7F5] p-3 rounded-xl border border-[#EFE8E2]"
@@ -1049,7 +1083,6 @@ export default function HomePreview() {
             </button>
           </form>
 
-          {/* รายการกำหนดการ พร้อมกล่องเปลี่ยนวันเริ่ม - สิ้นสุด */}
           <div className="space-y-2.5">
             {displayedActionItems.length === 0 ? (
               <div className="text-xs text-[#8C7A78] bg-[#FAF7F5] p-6 rounded-xl border border-[#EFE8E2] text-center">
@@ -1085,7 +1118,6 @@ export default function HomePreview() {
                           🏷️ {item.department}
                         </span>
 
-                        {/* กล่องเลือกวันเริ่ม - สิ้นสุด */}
                         <div className="flex items-center gap-1.5 bg-white border border-[#E8DFD8] px-2.5 py-1 rounded-md">
                           <span className="text-[10px]">📅 เริ่ม:</span>
                           <input
@@ -1188,7 +1220,7 @@ export default function HomePreview() {
         </div>
       )}
 
-      {/* 2. Modal คัดกรองงานจากบันทึกที่เลือก (มีทั้งวันเริ่มและสิ้นสุด) */}
+      {/* 2. Modal คัดกรองงาน */}
       {activeRecordForExtract && (
         <div className="fixed inset-0 bg-black/40 backdrop-blur-xs flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-2xl p-6 max-w-lg w-full shadow-2xl border border-[#EFE8E2]">
