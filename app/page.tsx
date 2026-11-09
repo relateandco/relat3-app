@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useRef } from "react";
+import Link from "next/link";
 
 declare global {
   interface Window {
@@ -9,7 +10,6 @@ declare global {
   }
 }
 
-// โครงสร้างบันทึกการประชุม
 interface MeetingRecord {
   id: string;
   department: string;
@@ -18,7 +18,6 @@ interface MeetingRecord {
   content: string;
 }
 
-// โครงสร้าง Key Date / Timeline รองรับวันเริ่มและวันสิ้นสุด
 interface ActionItem {
   id: string;
   task: string;
@@ -50,16 +49,16 @@ export default function HomePreview() {
   const [isRecording, setIsRecording] = useState(false);
   const [transcript, setTranscript] = useState("");
   const [meetingTitle, setMeetingTitle] = useState("");
-  const [recordDate, setRecordDate] = useState("2026-11-08");
+  const [recordDate, setRecordDate] = useState("2026-11-09");
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
 
-  // ระบบแผนก
+  // Departments
   const [departments, setDepartments] = useState<string[]>(DEFAULT_DEPARTMENTS);
   const [selectedDepartment, setSelectedDepartment] = useState<string>(DEFAULT_DEPARTMENTS[0]);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [newDeptInput, setNewDeptInput] = useState("");
 
-  // กล่องบันทึกการประชุมย้อนหลัง
+  // Meeting Records State
   const [meetingRecords, setMeetingRecords] = useState<MeetingRecord[]>([
     {
       id: "note-1",
@@ -67,7 +66,7 @@ export default function HomePreview() {
       date: "2026-11-08",
       title: "การประชุมแผนก Management & Strategy",
       content:
-        "ประชุมทุกวันอังคารต่อไปนี้ จะแชร์เรื่องราวที่เกิดขึ้นกับหน้าร้าน ส่วนเรื่อง Action plan จะให้ Area ของตนเองเป็นคน Review แทน\nไม่นำกล่องมาวางหน้าร้าน หรือโซนเคาน์เตอร์ ทุกกรณี",
+        "ประชุมทุกวันอังคารต่อไปนี้ จะแชร์เรื่องราวที่เกิดขึ้นกับหน้าร้าน ส่วนเรื่อง Action plan จะให้ Area ของตนเองเป็นคน Review แทน\nไม่นำกล่องมาวางหน้าร้าน หรือโซนเคาน์เตอร์ ทุกกรณี\nโปรดช่วยกันดูแลความสะอาดภายในร้านด้วย เนื่องจากช่วงนี้เรากำลังจะมี Visitor มาเยี่ยมชมร้าน จาก India (เหล่าแก๊ง CEO) เขาจะอยู่ในไทยเป็นสัปดาห์ และเขาจะมีการรื้อร้าน ห้ามซุกซ่อนของตามจุดต่างๆ\nคำเตือน: หากร้านไหน เปิดร้านไม่ตรงเวลา/ร้านรก ระวังจะโดนยื่นซองขาวทันทีนะคะ\n02/11/26 เรามีเปิด pop up ที่ all season place (จุดรวมพลชาวออฟฟิศ/สถานทูต/สถานที่ต่างๆ) ซึ่งเข้าร่วมแคมเปญ Run for frame เช่นกัน\n\nRFF: Extend 15th Nov 2026\nStarbuck e-Coupon: 100THB\nให้ลูกค้าถ่ายคอนเท้น RFF tag @lenskartth ผ่าน IG/Tiktok และส่ง like เพื่อรับรางวัลผ่าน LINE @lenskart_th",
     },
     {
       id: "note-2",
@@ -78,19 +77,19 @@ export default function HomePreview() {
     },
   ]);
 
-  // ตัวกรองประวัติการประชุม
   const [filterDate, setFilterDate] = useState<string>("");
   const [filterDept, setFilterDept] = useState<string>("ALL");
 
-  // State สำหรับดูบันทึกฉบับเต็ม
+  // State สำหรับเปิดอ่าน / ขยาย / แก้ไขบันทึก
   const [expandedRecordIds, setExpandedRecordIds] = useState<string[]>([]);
   const [viewingRecordModal, setViewingRecordModal] = useState<MeetingRecord | null>(null);
+  const [editingRecord, setEditingRecord] = useState<MeetingRecord | null>(null);
 
-  // Modal คัดกรอง
+  // Extract Action Items Modal
   const [activeRecordForExtract, setActiveRecordForExtract] = useState<MeetingRecord | null>(null);
   const [candidateTasks, setCandidateTasks] = useState<CandidateTask[]>([]);
 
-  // กำหนดการและสิ่งที่ต้องติดตาม (Key Dates & Follow-ups)
+  // Action Items / Key Dates
   const [actionItems, setActionItems] = useState<ActionItem[]>([
     {
       id: "1",
@@ -110,18 +109,20 @@ export default function HomePreview() {
     },
   ]);
 
-  // ตัวกรองสำหรับกำหนดการ
   const [actionItemFilterDate, setActionItemFilterDate] = useState<string>("");
-
-  // ฟอร์มเพิ่มกำหนดการเอง
   const [newTask, setNewTask] = useState("");
-  const [newStartDate, setNewStartDate] = useState("2026-11-08");
-  const [newDueDate, setNewDueDate] = useState("2026-11-15");
+  const [newStartDate, setNewStartDate] = useState("2026-11-09");
+  const [newDueDate, setNewDueDate] = useState("2026-11-16");
 
-  // การ์ดสรุปภาพรวม (Executive Brief)
+  // Executive Brief & Custom Share
   const [summaryTargetDate, setSummaryTargetDate] = useState<string>("2026-11-08");
   const [isSummaryCollapsed, setIsSummaryCollapsed] = useState(false);
   const [editableSummaryText, setEditableSummaryText] = useState("");
+  const [isSelectorOpen, setIsSelectorOpen] = useState(false);
+
+  // ID ของรายการที่เลือกเพื่อนำไปแชร์
+  const [selectedRecordIdsToShare, setSelectedRecordIdsToShare] = useState<string[]>(["note-1", "note-2"]);
+  const [selectedTaskIdsToShare, setSelectedTaskIdsToShare] = useState<string[]>(["1", "2"]);
 
   const recognitionRef = useRef<any>(null);
   const mediaStreamRef = useRef<MediaStream | null>(null);
@@ -144,7 +145,9 @@ export default function HomePreview() {
     const savedRecords = localStorage.getItem("relat3_meeting_records");
     if (savedRecords) {
       try {
-        setMeetingRecords(JSON.parse(savedRecords));
+        const parsed = JSON.parse(savedRecords);
+        setMeetingRecords(parsed);
+        setSelectedRecordIdsToShare(parsed.map((r: MeetingRecord) => r.id));
       } catch (e) {
         console.error(e);
       }
@@ -154,11 +157,8 @@ export default function HomePreview() {
     if (savedTasks) {
       try {
         const parsed = JSON.parse(savedTasks);
-        const updated = parsed.map((item: any) => ({
-          ...item,
-          startDate: item.startDate || item.dueDate || "2026-11-08",
-        }));
-        setActionItems(updated);
+        setActionItems(parsed);
+        setSelectedTaskIdsToShare(parsed.map((t: ActionItem) => t.id));
       } catch (e) {
         console.error(e);
       }
@@ -219,22 +219,40 @@ export default function HomePreview() {
     const newRecord: MeetingRecord = {
       id: Date.now().toString(),
       department: selectedDepartment,
-      date: recordDate || "2026-11-08",
+      date: recordDate || "2026-11-09",
       title: meetingTitle.trim() || `การประชุมแผนก ${selectedDepartment}`,
       content: transcript.trim(),
     };
 
-    saveMeetingRecords([newRecord, ...meetingRecords]);
+    const updated = [newRecord, ...meetingRecords];
+    saveMeetingRecords(updated);
+    setSelectedRecordIdsToShare((prev) => [newRecord.id, ...prev]);
     setTranscript("");
     setMeetingTitle("");
     finalTranscriptRef.current = "";
     alert(`บันทึกการประชุมวันที่ ${newRecord.date} เรียบร้อยแล้ว!`);
   };
 
+  const handleSaveEditedRecord = () => {
+    if (!editingRecord) return;
+    if (!editingRecord.content.trim()) {
+      alert("เนื้อหาบันทึกการประชุมต้องไม่เว้นว่างครับ");
+      return;
+    }
+
+    const updated = meetingRecords.map((r) =>
+      r.id === editingRecord.id ? editingRecord : r
+    );
+    saveMeetingRecords(updated);
+    setEditingRecord(null);
+    alert("บันทึกการแก้ไขเรียบร้อยแล้ว!");
+  };
+
   const handleDeleteRecord = (id: string) => {
     if (confirm("ต้องการลบบันทึกการประชุมนี้ใช่หรือไม่?")) {
       const updated = meetingRecords.filter((r) => r.id !== id);
       saveMeetingRecords(updated);
+      setSelectedRecordIdsToShare((prev) => prev.filter((item) => item !== id));
     }
   };
 
@@ -253,18 +271,15 @@ export default function HomePreview() {
       .filter((l) => l.length > 0);
 
     const candidates: CandidateTask[] = lines.map((line, idx) => {
-      let detectedStart = record.date || "2026-11-08";
-      let detectedEnd = record.date || "2026-11-15";
+      let detectedStart = record.date || "2026-11-09";
+      let detectedEnd = record.date || "2026-11-16";
 
       if (line.includes("17-30")) {
         detectedStart = "2026-11-17";
         detectedEnd = "2026-11-30";
       } else if (line.includes("15 Nov") || line.includes("15th")) {
-        detectedStart = record.date || "2026-11-08";
+        detectedStart = record.date || "2026-11-09";
         detectedEnd = "2026-11-15";
-      } else if (line.includes("17 Nov")) {
-        detectedStart = record.date || "2026-11-08";
-        detectedEnd = "2026-11-17";
       }
 
       return {
@@ -295,7 +310,9 @@ export default function HomePreview() {
       completed: false,
     }));
 
-    saveTasks([...newItems, ...actionItems]);
+    const updated = [...newItems, ...actionItems];
+    saveTasks(updated);
+    setSelectedTaskIdsToShare((prev) => [...newItems.map((n) => n.id), ...prev]);
     setActiveRecordForExtract(null);
     alert(`คัดกรองและส่งต่อไปยังกำหนดการเรียบร้อย ${newItems.length} รายการ!`);
   };
@@ -310,6 +327,7 @@ export default function HomePreview() {
   const handleDeleteTask = (id: string) => {
     const updated = actionItems.filter((item) => item.id !== id);
     saveTasks(updated);
+    setSelectedTaskIdsToShare((prev) => prev.filter((item) => item !== id));
   };
 
   const handleUpdateDates = (id: string, field: "startDate" | "dueDate", newDate: string) => {
@@ -327,12 +345,14 @@ export default function HomePreview() {
       id: Date.now().toString(),
       task: newTask.trim(),
       department: selectedDepartment,
-      startDate: newStartDate || newDueDate || "2026-11-08",
-      dueDate: newDueDate || newStartDate || "2026-11-15",
+      startDate: newStartDate || newDueDate || "2026-11-09",
+      dueDate: newDueDate || newStartDate || "2026-11-16",
       completed: false,
     };
 
-    saveTasks([newItem, ...actionItems]);
+    const updated = [newItem, ...actionItems];
+    saveTasks(updated);
+    setSelectedTaskIdsToShare((prev) => [newItem.id, ...prev]);
     setNewTask("");
   };
 
@@ -343,7 +363,6 @@ export default function HomePreview() {
     );
 
     const startFormatted = item.startDate ? item.startDate.replace(/-/g, "") : item.dueDate.replace(/-/g, "");
-
     const endDateObj = new Date(item.dueDate);
     endDateObj.setDate(endDateObj.getDate() + 1);
     const endFormatted = endDateObj.toISOString().slice(0, 10).replace(/-/g, "");
@@ -353,21 +372,23 @@ export default function HomePreview() {
     window.open(calendarUrl, "_blank");
   };
 
-  const buildSummaryString = (targetDate: string) => {
-    const targetDateLabel = targetDate ? `ประจำวันที่: ${targetDate}` : "ทั้งหมดทุกวัน";
-    let text = `📌 [Relate & Co.] สรุปภาพรวมการประชุมรวมทุกแผนก\n📅 ${targetDateLabel}\n`;
+  // สร้างร่างข้อความสรุปตามสิ่งที่ติ๊กเลือก
+  const generateShareSummaryText = () => {
+    const targetDateLabel = summaryTargetDate ? `ประจำวันที่: ${summaryTargetDate}` : "ทั้งหมดทุกวัน";
+    let text = `📌 [Relate & Co.] สรุปภาพรวมการประชุมเพื่อนำไปแชร์ต่อ\n📅 ${targetDateLabel}\n`;
     text += `━━━━━━━━━━━━━━━━━━━━━━\n\n`;
 
-    const targetRecords = targetDate
-      ? meetingRecords.filter((r) => r.date === targetDate)
-      : meetingRecords;
+    const chosenRecords = meetingRecords.filter((r) => {
+      const matchDate = summaryTargetDate ? r.date === summaryTargetDate : true;
+      return matchDate && selectedRecordIdsToShare.includes(r.id);
+    });
 
     text += `📝 1. ประเด็นการประชุมตามแผนก:\n`;
-    if (targetRecords.length === 0) {
-      text += `   (ไม่พบประวัติการประชุมในวันที่เลือก)\n\n`;
+    if (chosenRecords.length === 0) {
+      text += `   (ไม่มีประเด็นที่เลือกแชร์)\n\n`;
     } else {
       const groupedByDept: { [key: string]: MeetingRecord[] } = {};
-      targetRecords.forEach((r) => {
+      chosenRecords.forEach((r) => {
         if (!groupedByDept[r.department]) groupedByDept[r.department] = [];
         groupedByDept[r.department].push(r);
       });
@@ -388,14 +409,17 @@ export default function HomePreview() {
     text += `━━━━━━━━━━━━━━━━━━━━━━\n`;
     text += `🎯 2. กำหนดการและช่วงเวลาสำคัญ (Key Dates & Timelines):\n`;
 
-    const targetActionItems = targetDate
-      ? actionItems.filter((item) => item.startDate === targetDate || item.dueDate === targetDate)
-      : actionItems;
+    const chosenTasks = actionItems.filter((item) => {
+      const matchDate = summaryTargetDate
+        ? item.startDate === summaryTargetDate || item.dueDate === summaryTargetDate
+        : true;
+      return matchDate && selectedTaskIdsToShare.includes(item.id);
+    });
 
-    if (targetActionItems.length === 0) {
-      text += `   (ไม่มีกำหนดการสำคัญในรอบนี้)\n`;
+    if (chosenTasks.length === 0) {
+      text += `   (ไม่มีกำหนดการสำคัญที่เลือกแชร์)\n`;
     } else {
-      targetActionItems.forEach((item, idx) => {
+      chosenTasks.forEach((item, idx) => {
         const status = item.completed ? "[เรียบร้อย ✔]" : "[รอติดตาม ⏳]";
         const dateRangeText =
           item.startDate === item.dueDate
@@ -406,13 +430,13 @@ export default function HomePreview() {
       });
     }
 
-    text += `\n━━━━━━━━━━━━━━━━━━━━━━\nGenerated by Relate & Co. Meeting Planner`;
+    text += `\n━━━━━━━━━━━━━━━━━━━━━━\nRelate & Co. Meeting Planner`;
     return text;
   };
 
   useEffect(() => {
-    setEditableSummaryText(buildSummaryString(summaryTargetDate));
-  }, [summaryTargetDate, meetingRecords, actionItems]);
+    setEditableSummaryText(generateShareSummaryText());
+  }, [summaryTargetDate, selectedRecordIdsToShare, selectedTaskIdsToShare, meetingRecords, actionItems]);
 
   const handleCopyShareableSummary = () => {
     if (!editableSummaryText.trim()) {
@@ -420,7 +444,7 @@ export default function HomePreview() {
       return;
     }
     navigator.clipboard.writeText(editableSummaryText);
-    alert("คัดลอกข้อความสรุปการประชุมเรียบร้อยแล้ว!");
+    alert("คัดลอกข้อความสรุปการประชุมที่เกลาแล้วเรียบร้อย พร้อมส่งต่อ!");
   };
 
   const displayedActionItems = actionItemFilterDate
@@ -429,7 +453,6 @@ export default function HomePreview() {
       )
     : actionItems;
 
-  // ตั้งค่า Speech Recognition แก้ปัญหาการเบิ้ลคำ และขยายการรับเสียง
   useEffect(() => {
     if (typeof window !== "undefined") {
       const SpeechRecognition =
@@ -459,9 +482,6 @@ export default function HomePreview() {
 
         recognition.onerror = (event: any) => {
           console.error("Speech recognition error:", event.error);
-          if (event.error === "not-allowed") {
-            alert("กรุณาอนุญาตสิทธิ์การใช้งานไมโครโฟนในเบราว์เซอร์");
-          }
           setIsRecording(false);
         };
 
@@ -474,7 +494,6 @@ export default function HomePreview() {
     }
   }, [language]);
 
-  // เริ่มบันทึกการประชุมต่อหน้า (ปลดล็อกฟิลเตอร์ไมค์เพื่อรับเสียงคนรอบโต๊ะ)
   const toggleInPersonRecording = async () => {
     if (!recognitionRef.current) {
       alert("เบราว์เซอร์นี้ยังไม่รองรับระบบถอดเสียง กรุณาใช้ Chrome หรือ Safari");
@@ -497,7 +516,6 @@ export default function HomePreview() {
     try {
       finalTranscriptRef.current = transcript ? transcript + "\n" : "";
 
-      // ขอสิทธิ์ไมโครโฟนแบบปิดระบบตัดเสียงรอบข้าง เพื่อให้ได้ยินเสียงคนรอบข้างในการประชุม
       if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
         try {
           const stream = await navigator.mediaDevices.getUserMedia({
@@ -509,7 +527,7 @@ export default function HomePreview() {
           });
           mediaStreamRef.current = stream;
         } catch (micErr) {
-          console.warn("ไม่สามารถปรับตั้งค่าไมค์ระดับลึกได้ จะใช้การเปิดไมค์มาตรฐาน:", micErr);
+          console.warn("Using default mic settings:", micErr);
         }
       }
 
@@ -538,10 +556,7 @@ export default function HomePreview() {
         audio: true,
       });
 
-      const micStream = await navigator.mediaDevices.getUserMedia({
-        audio: true,
-      });
-
+      const micStream = await navigator.mediaDevices.getUserMedia({ audio: true });
       const audioCtx = new AudioContext();
       const micSource = audioCtx.createMediaStreamSource(micStream);
       const displaySource = audioCtx.createMediaStreamSource(displayStream);
@@ -549,12 +564,9 @@ export default function HomePreview() {
 
       micSource.connect(destination);
       displaySource.connect(destination);
-
       mediaStreamRef.current = destination.stream;
 
-      if (recognitionRef.current) {
-        recognitionRef.current.start();
-      }
+      if (recognitionRef.current) recognitionRef.current.start();
       setIsRecording(true);
 
       displayStream.getVideoTracks()[0].onended = () => {
@@ -578,16 +590,26 @@ export default function HomePreview() {
 
   return (
     <div className="min-h-screen bg-[#FDFBF7] p-6 md:p-10 text-[#4A3E3D]">
-      {/* Header */}
+      {/* Header พร้อมปุ่มทางลัดไปยัง Task Dashboard */}
       <header className="max-w-4xl mx-auto flex items-center justify-between border-b border-[#E8DFD8] pb-4 mb-6">
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-[#3A2D28]">Relate & Co.</h1>
           <p className="text-xs text-[#8C7A78] uppercase tracking-widest font-medium mt-0.5">Meeting Planner</p>
         </div>
-        <div className="flex items-center gap-3">
-          <div className="bg-[#F4ECE6] px-4 py-1.5 rounded-full text-xs font-semibold text-[#7A635A]">
-            08/11/2026
+        <div className="flex items-center gap-2.5">
+          {/* ปุ่มทางลัดเปิด Task Dashboard */}
+          <Link
+            href="/dashboard"
+            className="bg-white hover:bg-[#FAF7F5] border border-[#E8DFD8] text-[#5C4F4D] px-3.5 py-2 rounded-xl text-xs font-semibold shadow-2xs flex items-center gap-1.5 transition-all"
+          >
+            <span>📊</span>
+            <span>Task Dashboard</span>
+          </Link>
+
+          <div className="bg-[#F4ECE6] px-3.5 py-2 rounded-xl text-xs font-semibold text-[#7A635A]">
+            09/11/2026
           </div>
+
           <button
             type="button"
             onClick={() => setIsSettingsOpen(true)}
@@ -600,22 +622,22 @@ export default function HomePreview() {
       </header>
 
       <main className="max-w-4xl mx-auto space-y-6">
-        {/* การ์ดสรุปภาพรวม (Executive Brief) */}
+        {/* สรุปผลการประชุมภาพรวมทุกแผนก (Executive Brief & Custom Share Builder) */}
         <section className="bg-white rounded-2xl p-6 shadow-sm border border-[#E0D4CA]">
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pb-4 border-b border-[#F7F2EE]">
             <div>
               <div className="flex items-center gap-2">
                 <span className="w-2.5 h-2.5 rounded-full bg-[#8C5E48]"></span>
                 <h2 className="text-base font-bold text-[#3A2D28]">
-                  สรุปผลการประชุมภาพรวมทุกแผนก (Executive Brief)
+                  สรุปผลการประชุมเพื่อแชร์ต่อกับทีม (Executive Brief)
                 </h2>
               </div>
               <p className="text-xs text-[#8C7A78] mt-0.5">
-                เลือกวันที่เพื่อดูสรุป และคลิกพิมพ์แก้ไขข้อความในกล่องด้านล่างได้โดยตรงก่อนกดแชร์
+                เลือกข้อมูลที่ต้องการนำไปแชร์ และคลิกพิมพ์แก้ไข/เกลาภาษาในกล่องด้านล่างได้อิสระ
               </p>
             </div>
 
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               <div className="flex items-center gap-1 bg-[#FAF7F5] border border-[#EFE8E2] px-2.5 py-1.5 rounded-xl">
                 <span className="text-[11px] text-[#8C7A78]">📅 เลือกรอบวันที่:</span>
                 <input
@@ -637,6 +659,15 @@ export default function HomePreview() {
 
               <button
                 type="button"
+                onClick={() => setIsSelectorOpen(!isSelectorOpen)}
+                className="bg-[#FAF7F5] hover:bg-[#F4ECE6] border border-[#E8DFD8] text-[#5C4F4D] px-3.5 py-2 rounded-xl text-xs font-semibold cursor-pointer transition-all flex items-center gap-1.5"
+              >
+                <span>🎯</span>
+                <span>{isSelectorOpen ? "ซ่อนตัวเลือกข้อมูล" : "เลือกหัวข้อที่จะแชร์"}</span>
+              </button>
+
+              <button
+                type="button"
                 onClick={handleCopyShareableSummary}
                 className="bg-[#8C5E48] hover:bg-[#734A36] text-white px-4 py-2 rounded-xl text-xs font-semibold cursor-pointer transition-all flex items-center gap-1.5 shadow-sm"
               >
@@ -646,19 +677,149 @@ export default function HomePreview() {
             </div>
           </div>
 
+          {/* แผงตัวเลือกประเด็นและกำหนดการสำคัญ */}
+          {isSelectorOpen && (
+            <div className="mt-4 p-4 rounded-xl bg-[#FCFAF8] border border-[#E8DFD8] space-y-4">
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-xs font-bold text-[#3A2D28] flex items-center gap-1">
+                    <span>📝</span> ติ๊กเลือกประเด็นการประชุมที่ต้องการให้ปรากฏในข้อความสรุป:
+                  </span>
+                  <div className="flex gap-2 text-[11px]">
+                    <button
+                      type="button"
+                      onClick={() => setSelectedRecordIdsToShare(meetingRecords.map((r) => r.id))}
+                      className="text-[#8C5E48] hover:underline font-medium cursor-pointer"
+                    >
+                      เลือกทั้งหมด
+                    </button>
+                    <span className="text-[#D0C5BD]">|</span>
+                    <button
+                      type="button"
+                      onClick={() => setSelectedRecordIdsToShare([])}
+                      className="text-[#8C7A78] hover:underline cursor-pointer"
+                    >
+                      ล้างการเลือก
+                    </button>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-40 overflow-y-auto pr-1">
+                  {meetingRecords.map((record) => {
+                    const isChecked = selectedRecordIdsToShare.includes(record.id);
+                    return (
+                      <label
+                        key={record.id}
+                        className={`flex items-start gap-2 p-2.5 rounded-lg border text-xs cursor-pointer transition-all ${
+                          isChecked
+                            ? "bg-white border-[#8C5E48] shadow-2xs"
+                            : "bg-[#FAF7F5]/60 border-[#EFE8E2] opacity-60"
+                        }`}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={isChecked}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              setSelectedRecordIdsToShare([...selectedRecordIdsToShare, record.id]);
+                            } else {
+                              setSelectedRecordIdsToShare(
+                                selectedRecordIdsToShare.filter((id) => id !== record.id)
+                              );
+                            }
+                          }}
+                          className="w-4 h-4 mt-0.5 rounded text-[#8C5E48] accent-[#8C5E48] shrink-0"
+                        />
+                        <div className="min-w-0 flex-1">
+                          <p className="font-semibold text-[#3A2D28] truncate">{record.title}</p>
+                          <p className="text-[10px] text-[#8C7A78]">
+                            🏷️ {record.department} • 📅 {record.date}
+                          </p>
+                        </div>
+                      </label>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <div className="pt-2 border-t border-[#EFE8E2]">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-xs font-bold text-[#3A2D28] flex items-center gap-1">
+                    <span>🎯</span> ติ๊กเลือกกำหนดการสำคัญ (Key Dates) ที่จะนำไปแชร์:
+                  </span>
+                  <div className="flex gap-2 text-[11px]">
+                    <button
+                      type="button"
+                      onClick={() => setSelectedTaskIdsToShare(actionItems.map((t) => t.id))}
+                      className="text-[#8C5E48] hover:underline font-medium cursor-pointer"
+                    >
+                      เลือกทั้งหมด
+                    </button>
+                    <span className="text-[#D0C5BD]">|</span>
+                    <button
+                      type="button"
+                      onClick={() => setSelectedTaskIdsToShare([])}
+                      className="text-[#8C7A78] hover:underline cursor-pointer"
+                    >
+                      ล้างการเลือก
+                    </button>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-40 overflow-y-auto pr-1">
+                  {actionItems.map((item) => {
+                    const isChecked = selectedTaskIdsToShare.includes(item.id);
+                    return (
+                      <label
+                        key={item.id}
+                        className={`flex items-start gap-2 p-2.5 rounded-lg border text-xs cursor-pointer transition-all ${
+                          isChecked
+                            ? "bg-white border-[#8C5E48] shadow-2xs"
+                            : "bg-[#FAF7F5]/60 border-[#EFE8E2] opacity-60"
+                        }`}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={isChecked}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              setSelectedTaskIdsToShare([...selectedTaskIdsToShare, item.id]);
+                            } else {
+                              setSelectedTaskIdsToShare(
+                                selectedTaskIdsToShare.filter((id) => id !== item.id)
+                              );
+                            }
+                          }}
+                          className="w-4 h-4 mt-0.5 rounded text-[#8C5E48] accent-[#8C5E48] shrink-0"
+                        />
+                        <div className="min-w-0 flex-1">
+                          <p className="font-medium text-[#3A2D28] truncate">{item.task}</p>
+                          <p className="text-[10px] text-[#8C7A78]">
+                            🏷️ {item.department} • 📅 {item.startDate} ถึง {item.dueDate}
+                          </p>
+                        </div>
+                      </label>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* กล่องแก้ไขและเกลาภาษา */}
           <div className="mt-4">
             <div className="flex items-center justify-between mb-2">
               <span className="text-[11px] font-semibold text-[#8C7A78] uppercase tracking-wider flex items-center gap-1">
-                ✍️ กล่องข้อความสรุป (คลิกเพื่อแก้ไขคำหรือเพิ่มเติมเนื้อหาได้โดยตรง):
+                ✍️ กล่องข้อความสรุป (คลิกพิมพ์เกลาภาษา เพิ่มเติม หรือตัดข้อความได้โดยตรง):
               </span>
               <div className="flex items-center gap-3">
                 <button
                   type="button"
-                  onClick={() => setEditableSummaryText(buildSummaryString(summaryTargetDate))}
+                  onClick={() => setEditableSummaryText(generateShareSummaryText())}
                   className="text-[11px] text-[#8C7A78] hover:text-[#5C4F4D] hover:underline cursor-pointer"
-                  title="รีเซ็ตข้อความกลับเป็นฉบับสร้างอัตโนมัติ"
+                  title="ประกอบร่างข้อความสรุปใหม่ตามตัวเลือกที่ติ๊กไว้"
                 >
-                  🔄 รีเซ็ตข้อความ
+                  🔄 ประกอบร่างใหม่ตามที่เลือก
                 </button>
                 <button
                   type="button"
@@ -674,14 +835,14 @@ export default function HomePreview() {
               <textarea
                 value={editableSummaryText}
                 onChange={(e) => setEditableSummaryText(e.target.value)}
-                rows={9}
+                rows={10}
                 className="w-full bg-[#FAF7F5] rounded-xl p-4 text-xs font-mono text-[#4A3E3D] border border-[#EFE8E2] leading-relaxed focus:outline-none focus:ring-1 focus:ring-[#8C5E48] resize-y"
               />
             )}
           </div>
         </section>
 
-        {/* ส่วนที่ 1: บันทึกเสียงและถอดความ */}
+        {/* ระบบบันทึกเสียงและถอดความ */}
         <section className="bg-white rounded-2xl p-6 shadow-sm border border-[#EFE8E2]">
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-5 pb-4 border-b border-[#F7F2EE]">
             <div>
@@ -755,7 +916,7 @@ export default function HomePreview() {
                   : "text-[#8C7A78] hover:text-[#5C4F4D]"
               }`}
             >
-              🌐 ออนไลน์ (Meet/Teams/Zoom)
+              🌐 ออนไลน์ (Meet/Teams)
             </button>
             <button
               type="button"
@@ -773,11 +934,8 @@ export default function HomePreview() {
           {meetingMode === "in-person" && (
             <div className="flex flex-col items-center justify-center p-6 border-2 border-dashed border-[#E8DFD8] rounded-xl bg-[#FCFAF8] mb-4">
               <p className="text-xs text-[#8C7A78] mb-1 text-center">
-                บันทึกการประชุมสำหรับแผนก: <strong className="text-[#5C4F4D]">{selectedDepartment}</strong> (วันที่ {recordDate})
+                บันทึกการประชุมแผนก: <strong className="text-[#5C4F4D]">{selectedDepartment}</strong> (วันที่ {recordDate})
               </p>
-              <span className="text-[11px] text-[#A89895] mb-3 text-center">
-                *ระบบตั้งค่าเปิดรับเสียงรอบข้างสำหรับวางมือถือไว้กลางโต๊ะประชุม
-              </span>
               <button
                 type="button"
                 onClick={toggleInPersonRecording}
@@ -794,12 +952,6 @@ export default function HomePreview() {
 
           {meetingMode === "online" && (
             <div className="flex flex-col items-center justify-center p-6 border-2 border-dashed border-[#E8DFD8] rounded-xl bg-[#FCFAF8] mb-4 text-center">
-              <p className="text-xs text-[#8C7A78] mb-1">
-                ดึงเสียงจาก Meet/Teams/Discord ร่วมกับไมโครโฟนของคุณ ({selectedDepartment})
-              </p>
-              <span className="text-[11px] text-[#A89895] mb-3">
-                *อย่าลืมติ๊กถูกที่ช่อง <strong>&quot;แชร์เสียงของแท็บ (Share tab audio)&quot;</strong>
-              </span>
               <button
                 type="button"
                 onClick={toggleOnlineMeetingRecording}
@@ -840,7 +992,7 @@ export default function HomePreview() {
           <div className="space-y-3">
             <input
               type="text"
-              placeholder="หัวข้อการประชุม (เช่น วางแผนแคมเปญเดือน พ.ย., สรุปผลยอดขายรายสัปดาห์)..."
+              placeholder="หัวข้อการประชุม..."
               value={meetingTitle}
               onChange={(e) => setMeetingTitle(e.target.value)}
               className="w-full bg-[#FAF7F5] rounded-xl px-4 py-2.5 text-xs text-[#5C4F4D] border border-[#EFE8E2] focus:outline-none focus:ring-1 focus:ring-[#8C5E48] font-medium"
@@ -852,7 +1004,7 @@ export default function HomePreview() {
                 setTranscript(e.target.value);
                 finalTranscriptRef.current = e.target.value;
               }}
-              placeholder={`พิมพ์หรือพูดเนื้อหาการประชุมที่นี่ (ขึ้นบรรทัดใหม่เมื่อขึ้นประเด็นใหม่)...`}
+              placeholder={`พิมพ์หรือพูดเนื้อหาการประชุมที่นี่...`}
               rows={4}
               className="w-full bg-[#FAF7F5] rounded-xl p-4 text-sm text-[#5C4F4D] border border-[#EFE8E2] leading-relaxed focus:outline-none focus:ring-1 focus:ring-[#8C5E48] resize-y"
             />
@@ -878,14 +1030,14 @@ export default function HomePreview() {
                   disabled={!transcript.trim()}
                   className="bg-[#8C5E48] hover:bg-[#734A36] disabled:opacity-50 text-white text-xs px-5 py-2.5 rounded-xl font-semibold shadow-sm flex items-center gap-1.5 transition-all cursor-pointer"
                 >
-                  <span>💾</span> บันทึกเก็บเป็นประวัติการประชุม (วันที่ {recordDate})
+                  <span>💾</span> บันทึกเก็บเป็นประวัติการประชุม
                 </button>
               </div>
             </div>
           </div>
         </section>
 
-        {/* ส่วนที่ 2: คลังบันทึกการประชุมรายวัน */}
+        {/* คลังบันทึกการประชุมรายวัน (พร้อมปุ่มแก้ไขบันทึก ✏️) */}
         <section className="bg-white rounded-2xl p-6 shadow-sm border border-[#EFE8E2]">
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-5 pb-4 border-b border-[#F7F2EE]">
             <div>
@@ -894,7 +1046,7 @@ export default function HomePreview() {
                 คลังบันทึกการประชุมรายวัน (ค้นหาย้อนหลัง)
               </h2>
               <p className="text-xs text-[#8C7A78] mt-0.5">
-                เลือกวันที่หรือแผนกเพื่อค้นหาประวัติการประชุมย้อนหลัง และคัดกรองงานไปที่กำหนดการ
+                เลือกวันที่หรือแผนกเพื่อค้นหาประวัติการประชุมย้อนหลัง แก้ไขข้อมูล หรือคัดกรองงานไปที่กำหนดการ
               </p>
             </div>
 
@@ -912,9 +1064,8 @@ export default function HomePreview() {
                     type="button"
                     onClick={() => setFilterDate("")}
                     className="text-[10px] text-[#A89895] hover:text-[#5C4F4D] ml-1 font-bold"
-                    title="ล้างตัวกรองวันที่"
                   >
-                    ✕ ดูทั้งหมด
+                    ✕ ทั้งหมด
                   </button>
                 )}
               </div>
@@ -937,7 +1088,7 @@ export default function HomePreview() {
           <div className="space-y-3">
             {filteredRecords.length === 0 ? (
               <div className="text-xs text-[#8C7A78] bg-[#FAF7F5] p-6 rounded-xl border border-[#EFE8E2] text-center">
-                ไม่พบประวัติการประชุม{filterDate ? ` ของวันที่ ${filterDate}` : ""}{filterDept !== "ALL" ? ` ในแผนก ${filterDept}` : ""}
+                ไม่พบประวัติการประชุม
               </div>
             ) : (
               filteredRecords.map((record) => {
@@ -967,11 +1118,11 @@ export default function HomePreview() {
                           {record.content}
                         </p>
 
-                        <div className="flex items-center gap-3 mt-2 pt-1 border-t border-[#F7F2EE]">
+                        <div className="flex flex-wrap items-center gap-4 mt-2 pt-2 border-t border-[#F7F2EE]">
                           <button
                             type="button"
                             onClick={() => toggleExpandRecord(record.id)}
-                            className="text-[11px] font-semibold text-[#8C5E48] hover:text-[#734A36] cursor-pointer flex items-center gap-1"
+                            className="text-[11px] font-semibold text-[#8C5E48] hover:text-[#734A36] cursor-pointer flex items-center gap-1 select-none"
                           >
                             <span>{isExpanded ? "▲ ย่อข้อความ" : "▼ ดูบันทึกเต็มในการ์ด"}</span>
                           </button>
@@ -979,10 +1130,19 @@ export default function HomePreview() {
                           <button
                             type="button"
                             onClick={() => setViewingRecordModal(record)}
-                            className="text-[11px] font-medium text-[#8C7A78] hover:text-[#3A2D28] cursor-pointer flex items-center gap-1"
+                            className="text-[11px] font-medium text-[#5C4F4D] hover:text-[#3A2D28] cursor-pointer flex items-center gap-1 select-none"
                           >
                             <span>📖</span>
                             <span>เปิดอ่านเต็มจอ</span>
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => setEditingRecord(record)}
+                            className="text-[11px] font-semibold text-[#2B6CB0] hover:text-[#1A4971] cursor-pointer flex items-center gap-1 select-none"
+                          >
+                            <span>✏️</span>
+                            <span>แก้ไขบันทึกนี้</span>
                           </button>
                         </div>
                       </div>
@@ -1012,7 +1172,7 @@ export default function HomePreview() {
           </div>
         </section>
 
-        {/* ส่วนที่ 3: กำหนดการและช่วงเวลาสำคัญ (Key Dates & Follow-ups) */}
+        {/* กำหนดการสำคัญ (Key Dates & Follow-ups) */}
         <section className="bg-white rounded-2xl p-6 shadow-sm border border-[#EFE8E2]">
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-4 pb-3 border-b border-[#F7F2EE]">
             <div>
@@ -1021,7 +1181,7 @@ export default function HomePreview() {
                 กำหนดการและช่วงเวลาสำคัญ (Key Dates &amp; Follow-ups)
               </h2>
               <p className="text-xs text-[#8C7A78] mt-0.5">
-                รวบรวมวันเริ่ม-สิ้นสุดโปรโมชัน วันเปิดตัว แคมเปญ และงานที่ต้องติดตาม ({displayedActionItems.length} จาก {actionItems.length} รายการ)
+                รวบรวมวันเริ่ม-สิ้นสุดโปรโมชัน วันเปิดตัว แคมเปญ ({displayedActionItems.length} จาก {actionItems.length} รายการ)
               </p>
             </div>
 
@@ -1038,9 +1198,8 @@ export default function HomePreview() {
                   type="button"
                   onClick={() => setActionItemFilterDate("")}
                   className="text-[10px] text-[#A89895] hover:text-[#5C4F4D] ml-1 font-bold"
-                  title="ล้างตัวกรอง"
                 >
-                  ✕ ดูทั้งหมด
+                  ✕ ทั้งหมด
                 </button>
               )}
             </div>
@@ -1052,7 +1211,7 @@ export default function HomePreview() {
           >
             <input
               type="text"
-              placeholder="ชื่องาน แคมเปญโปรโมชัน หรือกำหนดการสำคัญ..."
+              placeholder="ชื่องาน แคมเปญ หรือกำหนดการสำคัญ..."
               value={newTask}
               onChange={(e) => setNewTask(e.target.value)}
               className="sm:col-span-6 bg-white border border-[#E8DFD8] rounded-xl px-3 py-2 text-xs text-[#5C4F4D] focus:outline-none focus:ring-1 focus:ring-[#8C5E48]"
@@ -1086,7 +1245,7 @@ export default function HomePreview() {
           <div className="space-y-2.5">
             {displayedActionItems.length === 0 ? (
               <div className="text-xs text-[#8C7A78] bg-[#FAF7F5] p-6 rounded-xl border border-[#EFE8E2] text-center">
-                ไม่พบรายการกำหนดการ{actionItemFilterDate ? ` ประจำวันที่ ${actionItemFilterDate}` : ""}
+                ไม่พบรายการกำหนดการ
               </div>
             ) : (
               displayedActionItems.map((item) => (
@@ -1143,7 +1302,6 @@ export default function HomePreview() {
                       type="button"
                       onClick={() => handleSyncGoogleCalendar(item)}
                       className="bg-white hover:bg-[#FAF7F5] border border-[#E8DFD8] text-[#5C4F4D] px-2.5 py-1.5 rounded-lg text-xs font-medium cursor-pointer transition-all flex items-center gap-1 shadow-2xs"
-                      title="ส่งช่วงเวลานี้เข้า Google Calendar"
                     >
                       <span>📅</span>
                       <span className="text-[11px]">Sync ปฏิทิน</span>
@@ -1152,7 +1310,6 @@ export default function HomePreview() {
                       type="button"
                       onClick={() => handleDeleteTask(item.id)}
                       className="text-[#C45E5E] hover:text-red-700 p-1.5 rounded-lg hover:bg-red-50 text-xs cursor-pointer transition-all"
-                      title="ลบรายการนี้"
                     >
                       🗑️
                     </button>
@@ -1164,10 +1321,112 @@ export default function HomePreview() {
         </section>
       </main>
 
-      {/* 1. Modal เปิดอ่านบันทึกฉบับเต็ม */}
+      {/* 1. Modal แก้ไขบันทึกการประชุม */}
+      {editingRecord && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 z-[9999]">
+          <div className="bg-white rounded-2xl p-6 max-w-2xl w-full shadow-2xl border border-[#EFE8E2]">
+            <div className="flex items-center justify-between pb-3 border-b border-[#F7F2EE] mb-4">
+              <h3 className="text-base font-bold text-[#3A2D28] flex items-center gap-2">
+                <span>✏️</span> แก้ไขบันทึกการประชุม
+              </h3>
+              <button
+                type="button"
+                onClick={() => setEditingRecord(null)}
+                className="text-[#A89895] hover:text-[#5C4F4D] text-xl font-bold p-1 cursor-pointer"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="space-y-4 mb-5">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="text-[11px] font-semibold text-[#8C7A78] block mb-1">
+                    🏷️ แผนก:
+                  </label>
+                  <select
+                    value={editingRecord.department}
+                    onChange={(e) =>
+                      setEditingRecord({ ...editingRecord, department: e.target.value })
+                    }
+                    className="w-full bg-[#FAF7F5] border border-[#EFE8E2] text-xs font-medium rounded-xl px-3 py-2 text-[#5C4F4D] focus:outline-none focus:ring-1 focus:ring-[#8C5E48]"
+                  >
+                    {departments.map((d) => (
+                      <option key={d} value={d}>
+                        {d}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="text-[11px] font-semibold text-[#8C7A78] block mb-1">
+                    📅 วันที่ประชุม:
+                  </label>
+                  <input
+                    type="date"
+                    value={editingRecord.date}
+                    onChange={(e) =>
+                      setEditingRecord({ ...editingRecord, date: e.target.value })
+                    }
+                    className="w-full bg-[#FAF7F5] border border-[#EFE8E2] text-xs font-medium rounded-xl px-3 py-2 text-[#5C4F4D] focus:outline-none focus:ring-1 focus:ring-[#8C5E48]"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="text-[11px] font-semibold text-[#8C7A78] block mb-1">
+                  หัวข้อการประชุม:
+                </label>
+                <input
+                  type="text"
+                  value={editingRecord.title}
+                  onChange={(e) =>
+                    setEditingRecord({ ...editingRecord, title: e.target.value })
+                  }
+                  className="w-full bg-[#FAF7F5] border border-[#EFE8E2] text-xs font-medium rounded-xl px-3 py-2 text-[#5C4F4D] focus:outline-none focus:ring-1 focus:ring-[#8C5E48]"
+                />
+              </div>
+
+              <div>
+                <label className="text-[11px] font-semibold text-[#8C7A78] block mb-1">
+                  เนื้อหาบันทึกการประชุม (แก้ไขข้อความได้อิสระ):
+                </label>
+                <textarea
+                  value={editingRecord.content}
+                  onChange={(e) =>
+                    setEditingRecord({ ...editingRecord, content: e.target.value })
+                  }
+                  rows={8}
+                  className="w-full bg-[#FAF7F5] border border-[#EFE8E2] text-xs leading-relaxed rounded-xl p-3 text-[#4A3E3D] focus:outline-none focus:ring-1 focus:ring-[#8C5E48] resize-y"
+                />
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end gap-2 pt-3 border-t border-[#F7F2EE]">
+              <button
+                type="button"
+                onClick={() => setEditingRecord(null)}
+                className="bg-[#FAF7F5] hover:bg-[#EFE8E2] text-[#5C4F4D] px-4 py-2 rounded-xl text-xs font-semibold cursor-pointer transition-all"
+              >
+                ยกเลิก
+              </button>
+              <button
+                type="button"
+                onClick={handleSaveEditedRecord}
+                className="bg-[#8C5E48] hover:bg-[#734A36] text-white px-5 py-2 rounded-xl text-xs font-semibold cursor-pointer transition-all shadow-sm"
+              >
+                💾 บันทึกการแก้ไข
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 2. Modal เปิดอ่านเต็มจอ */}
       {viewingRecordModal && (
-        <div className="fixed inset-0 bg-black/40 backdrop-blur-xs flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-2xl p-6 max-w-xl w-full shadow-2xl border border-[#EFE8E2]">
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 z-[9999]">
+          <div className="bg-white rounded-2xl p-6 max-w-2xl w-full shadow-2xl border border-[#EFE8E2]">
             <div className="flex items-center justify-between pb-3 border-b border-[#F7F2EE] mb-4">
               <div>
                 <div className="flex items-center gap-2 mb-1">
@@ -1185,14 +1444,14 @@ export default function HomePreview() {
               <button
                 type="button"
                 onClick={() => setViewingRecordModal(null)}
-                className="text-[#A89895] hover:text-[#5C4F4D] text-lg font-bold p-1 cursor-pointer"
+                className="text-[#A89895] hover:text-[#5C4F4D] text-xl font-bold p-1 cursor-pointer"
               >
                 ✕
               </button>
             </div>
 
-            <div className="bg-[#FAF7F5] p-4 rounded-xl border border-[#EFE8E2] max-h-96 overflow-y-auto mb-5">
-              <p className="text-xs text-[#4A3E3D] whitespace-pre-wrap leading-relaxed">
+            <div className="bg-[#FAF7F5] p-5 rounded-xl border border-[#EFE8E2] max-h-[60vh] overflow-y-auto mb-5">
+              <p className="text-xs sm:text-sm text-[#4A3E3D] whitespace-pre-wrap leading-relaxed">
                 {viewingRecordModal.content}
               </p>
             </div>
@@ -1220,9 +1479,9 @@ export default function HomePreview() {
         </div>
       )}
 
-      {/* 2. Modal คัดกรองงาน */}
+      {/* 3. Modal คัดกรอง Action Items */}
       {activeRecordForExtract && (
-        <div className="fixed inset-0 bg-black/40 backdrop-blur-xs flex items-center justify-center p-4 z-50">
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 z-[9999]">
           <div className="bg-white rounded-2xl p-6 max-w-lg w-full shadow-2xl border border-[#EFE8E2]">
             <div className="flex items-center justify-between pb-3 border-b border-[#F7F2EE] mb-4">
               <div>
@@ -1230,7 +1489,7 @@ export default function HomePreview() {
                   <span>⚡</span> คัดกรองกำหนดการและช่วงเวลาสำคัญ
                 </h3>
                 <p className="text-xs text-[#8C7A78] mt-0.5">
-                  จากเรื่อง: <strong>{activeRecordForExtract.title}</strong> (วันที่ {activeRecordForExtract.date} - แผนก {activeRecordForExtract.department})
+                  จากเรื่อง: <strong>{activeRecordForExtract.title}</strong>
                 </p>
               </div>
               <button
@@ -1241,10 +1500,6 @@ export default function HomePreview() {
                 ✕
               </button>
             </div>
-
-            <p className="text-xs text-[#5C4F4D] mb-3">
-              ติ๊กถูกเฉพาะหัวข้อหรือโปรโมชันที่ต้องการนำไปติดตามลงในกำหนดการ:
-            </p>
 
             <div className="space-y-3 max-h-72 overflow-y-auto pr-1 mb-5">
               {candidateTasks.map((candidate, idx) => (
@@ -1336,9 +1591,9 @@ export default function HomePreview() {
         </div>
       )}
 
-      {/* 3. Settings Modal */}
+      {/* 4. Settings Modal */}
       {isSettingsOpen && (
-        <div className="fixed inset-0 bg-black/40 backdrop-blur-xs flex items-center justify-center p-4 z-50">
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 z-[9999]">
           <div className="bg-white rounded-2xl p-6 max-w-md w-full shadow-xl border border-[#EFE8E2]">
             <div className="flex items-center justify-between pb-3 border-b border-[#F7F2EE] mb-4">
               <h3 className="text-base font-bold text-[#3A2D28] flex items-center gap-2">
@@ -1352,10 +1607,6 @@ export default function HomePreview() {
                 ✕
               </button>
             </div>
-
-            <p className="text-xs text-[#8C7A78] mb-4">
-              เพิ่มหรือลบชื่อแผนกเพื่อให้ตรงกับสายงานของคุณ ข้อมูลจะถูกบันทึกไว้อัตโนมัติ
-            </p>
 
             <div className="flex gap-2 mb-5">
               <input
@@ -1386,7 +1637,6 @@ export default function HomePreview() {
                     type="button"
                     onClick={() => handleDeleteDepartment(dept)}
                     className="text-[#C45E5E] hover:text-red-700 cursor-pointer p-1"
-                    title="ลบแผนก"
                   >
                     🗑️
                   </button>
