@@ -58,24 +58,8 @@ export default function HomePreview() {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [newDeptInput, setNewDeptInput] = useState("");
 
-  // Meeting Records State
-  const [meetingRecords, setMeetingRecords] = useState<MeetingRecord[]>([
-    {
-      id: "note-1",
-      department: "Management & Strategy",
-      date: "2026-11-08",
-      title: "การประชุมแผนก Management & Strategy",
-      content:
-        "ประชุมทุกวันอังคารต่อไปนี้ จะแชร์เรื่องราวที่เกิดขึ้นกับหน้าร้าน ส่วนเรื่อง Action plan จะให้ Area ของตนเองเป็นคน Review แทน\nไม่นำกล่องมาวางหน้าร้าน หรือโซนเคาน์เตอร์ ทุกกรณี\nโปรดช่วยกันดูแลความสะอาดภายในร้านด้วย เนื่องจากช่วงนี้เรากำลังจะมี Visitor มาเยี่ยมชมร้าน จาก India (เหล่าแก๊ง CEO) เขาจะอยู่ในไทยเป็นสัปดาห์ และเขาจะมีการรื้อร้าน ห้ามซุกซ่อนของตามจุดต่างๆ\nคำเตือน: หากร้านไหน เปิดร้านไม่ตรงเวลา/ร้านรก ระวังจะโดนยื่นซองขาวทันทีนะคะ\n02/11/26 เรามีเปิด pop up ที่ all season place (จุดรวมพลชาวออฟฟิศ/สถานทูต/สถานที่ต่างๆ) ซึ่งเข้าร่วมแคมเปญ Run for frame เช่นกัน\n\nRFF: Extend 15th Nov 2026\nStarbuck e-Coupon: 100THB\nให้ลูกค้าถ่ายคอนเท้น RFF tag @lenskartth ผ่าน IG/Tiktok และส่ง like เพื่อรับรางวัลผ่าน LINE @lenskart_th",
-    },
-    {
-      id: "note-2",
-      department: "Marketing & Content",
-      date: "2026-11-08",
-      title: "วางแผนแคมเปญเดือน พ.ย.",
-      content: "Fan Meeting 17-30 Nov 2026\nRun FF หมดโปรวันที่ 15 Nov 2026",
-    },
-  ]);
+  // Meeting Records State (เริ่มต้นว่างเปล่า ไม่มีข้อมูลจำลองเดิม)
+  const [meetingRecords, setMeetingRecords] = useState<MeetingRecord[]>([]);
 
   const [filterDate, setFilterDate] = useState<string>("");
   const [filterDept, setFilterDept] = useState<string>("ALL");
@@ -89,25 +73,8 @@ export default function HomePreview() {
   const [activeRecordForExtract, setActiveRecordForExtract] = useState<MeetingRecord | null>(null);
   const [candidateTasks, setCandidateTasks] = useState<CandidateTask[]>([]);
 
-  // Action Items / Key Dates
-  const [actionItems, setActionItems] = useState<ActionItem[]>([
-    {
-      id: "1",
-      task: "Fan Meeting แคมเปญหน้าร้าน",
-      department: "Marketing & Content",
-      startDate: "2026-11-17",
-      dueDate: "2026-11-30",
-      completed: false,
-    },
-    {
-      id: "2",
-      task: "RFF: Extend 15th Nov 2026",
-      department: "Management & Strategy",
-      startDate: "2026-11-08",
-      dueDate: "2026-11-15",
-      completed: true,
-    },
-  ]);
+  // Action Items / Key Dates (เริ่มต้นว่างเปล่า ไม่มีข้อมูลจำลองเดิม)
+  const [actionItems, setActionItems] = useState<ActionItem[]>([]);
 
   const [actionItemFilterDate, setActionItemFilterDate] = useState<string>("");
   const [newTask, setNewTask] = useState("");
@@ -115,14 +82,14 @@ export default function HomePreview() {
   const [newDueDate, setNewDueDate] = useState("2026-11-16");
 
   // Executive Brief & Custom Share
-  const [summaryTargetDate, setSummaryTargetDate] = useState<string>("2026-11-08");
+  const [summaryTargetDate, setSummaryTargetDate] = useState<string>("2026-11-09");
   const [isSummaryCollapsed, setIsSummaryCollapsed] = useState(false);
   const [editableSummaryText, setEditableSummaryText] = useState("");
   const [isSelectorOpen, setIsSelectorOpen] = useState(false);
 
   // ID ของรายการที่เลือกเพื่อนำไปแชร์
-  const [selectedRecordIdsToShare, setSelectedRecordIdsToShare] = useState<string[]>(["note-1", "note-2"]);
-  const [selectedTaskIdsToShare, setSelectedTaskIdsToShare] = useState<string[]>(["1", "2"]);
+  const [selectedRecordIdsToShare, setSelectedRecordIdsToShare] = useState<string[]>([]);
+  const [selectedTaskIdsToShare, setSelectedTaskIdsToShare] = useState<string[]>([]);
 
   const recognitionRef = useRef<any>(null);
   const mediaStreamRef = useRef<MediaStream | null>(null);
@@ -372,7 +339,6 @@ export default function HomePreview() {
     window.open(calendarUrl, "_blank");
   };
 
-  // สร้างร่างข้อความสรุปตามสิ่งที่ติ๊กเลือก
   const generateShareSummaryText = () => {
     const targetDateLabel = summaryTargetDate ? `ประจำวันที่: ${summaryTargetDate}` : "ทั้งหมดทุกวัน";
     let text = `📌 [Relate & Co.] สรุปภาพรวมการประชุมเพื่อนำไปแชร์ต่อ\n📅 ${targetDateLabel}\n`;
@@ -426,7 +392,7 @@ export default function HomePreview() {
             ? item.dueDate
             : `${item.startDate} ถึง ${item.dueDate}`;
         text += `${idx + 1}. ${item.task}\n`;
-        text += `   └ แผนก: ${item.department} | ระยะเวลา: ${dateRangeText} ${status}\n`;
+        text += `    └ แผนก: ${item.department} | ระยะเวลา: ${dateRangeText} ${status}\n`;
       });
     }
 
@@ -590,33 +556,38 @@ export default function HomePreview() {
 
   return (
     <div className="min-h-screen bg-[#FDFBF7] p-6 md:p-10 text-[#4A3E3D]">
-      {/* Header พร้อมปุ่มทางลัดไปยัง Task Dashboard */}
+      {/* Header พร้อมปุ่มลัด Task Dashboard และ Calendar */}
       <header className="max-w-4xl mx-auto flex items-center justify-between border-b border-[#E8DFD8] pb-4 mb-6">
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-[#3A2D28]">Relate & Co.</h1>
           <p className="text-xs text-[#8C7A78] uppercase tracking-widest font-medium mt-0.5">Meeting Planner</p>
         </div>
-        <div className="flex items-center gap-2.5">
-          {/* ปุ่มทางลัดเปิด Task Dashboard */}
+        <div className="flex items-center gap-2">
+          {/* ปุ่มลัดไปหน้า Calendar */}
           <Link
-            href="/dashboard"
-            className="bg-white hover:bg-[#FAF7F5] border border-[#E8DFD8] text-[#5C4F4D] px-3.5 py-2 rounded-xl text-xs font-semibold shadow-2xs flex items-center gap-1.5 transition-all"
+            href="/calendar"
+            className="bg-white hover:bg-[#FAF7F5] border border-[#E8DFD8] text-[#5C4F4D] px-3 py-1.5 rounded-xl text-xs font-semibold shadow-2xs flex items-center gap-1 transition-all"
           >
-            <span>📊</span>
-            <span>Task Dashboard</span>
+            <span>📅</span>
+            <span>ปฏิทิน</span>
           </Link>
 
-          <div className="bg-[#F4ECE6] px-3.5 py-2 rounded-xl text-xs font-semibold text-[#7A635A]">
-            09/11/2026
-          </div>
+          {/* ปุ่มลัดไปหน้า Task Dashboard */}
+          <Link
+            href="/dashboard"
+            className="bg-white hover:bg-[#FAF7F5] border border-[#E8DFD8] text-[#5C4F4D] px-3 py-1.5 rounded-xl text-xs font-semibold shadow-2xs flex items-center gap-1 transition-all"
+          >
+            <span>📊</span>
+            <span>Dashboard</span>
+          </Link>
 
           <button
             type="button"
             onClick={() => setIsSettingsOpen(true)}
-            className="p-2 rounded-xl bg-white border border-[#E8DFD8] hover:bg-[#FAF7F5] text-[#5C4F4D] transition-all cursor-pointer shadow-sm flex items-center gap-1.5 text-xs font-medium"
+            className="p-1.5 rounded-xl bg-white border border-[#E8DFD8] hover:bg-[#FAF7F5] text-[#5C4F4D] transition-all cursor-pointer shadow-sm flex items-center gap-1 text-xs font-medium"
           >
             <span>⚙️</span>
-            <span>ตั้งค่าแผนก</span>
+            <span>แผนก</span>
           </button>
         </div>
       </header>
@@ -1321,7 +1292,7 @@ export default function HomePreview() {
         </section>
       </main>
 
-      {/* 1. Modal แก้ไขบันทึกการประชุม */}
+      {/* Modal แก้ไขบันทึกการประชุม */}
       {editingRecord && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 z-[9999]">
           <div className="bg-white rounded-2xl p-6 max-w-2xl w-full shadow-2xl border border-[#EFE8E2]">
@@ -1390,7 +1361,7 @@ export default function HomePreview() {
 
               <div>
                 <label className="text-[11px] font-semibold text-[#8C7A78] block mb-1">
-                  เนื้อหาบันทึกการประชุม (แก้ไขข้อความได้อิสระ):
+                  เนื้อหาบันทึกการประชุม:
                 </label>
                 <textarea
                   value={editingRecord.content}
@@ -1423,7 +1394,7 @@ export default function HomePreview() {
         </div>
       )}
 
-      {/* 2. Modal เปิดอ่านเต็มจอ */}
+      {/* Modal เปิดอ่านเต็มจอ */}
       {viewingRecordModal && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 z-[9999]">
           <div className="bg-white rounded-2xl p-6 max-w-2xl w-full shadow-2xl border border-[#EFE8E2]">
@@ -1479,7 +1450,7 @@ export default function HomePreview() {
         </div>
       )}
 
-      {/* 3. Modal คัดกรอง Action Items */}
+      {/* Modal คัดกรอง Action Items */}
       {activeRecordForExtract && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 z-[9999]">
           <div className="bg-white rounded-2xl p-6 max-w-lg w-full shadow-2xl border border-[#EFE8E2]">
@@ -1591,7 +1562,7 @@ export default function HomePreview() {
         </div>
       )}
 
-      {/* 4. Settings Modal */}
+      {/* Settings Modal */}
       {isSettingsOpen && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 z-[9999]">
           <div className="bg-white rounded-2xl p-6 max-w-md w-full shadow-xl border border-[#EFE8E2]">
