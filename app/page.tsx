@@ -1,7 +1,9 @@
 "use client";
 
 import React, { useState, useEffect, useRef } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { createClient } from "../utils/supabaseClient";
 
 declare global {
   interface Window {
@@ -44,6 +46,12 @@ const DEFAULT_DEPARTMENTS = [
 ];
 
 export default function HomePreview() {
+  const router = useRouter();
+  const supabase = createClient();
+
+  // สถานะตรวจสอบการล็อกอินและสิทธิ์การเข้าใช้งาน
+  const [authLoading, setAuthLoading] = useState(true);
+
   const [meetingMode, setMeetingMode] = useState<"in-person" | "online" | "upload">("in-person");
   const [language, setLanguage] = useState<"th-TH" | "en-US">("th-TH");
   const [isRecording, setIsRecording] = useState(false);
@@ -58,7 +66,7 @@ export default function HomePreview() {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [newDeptInput, setNewDeptInput] = useState("");
 
-  // Meeting Records State (เริ่มต้นว่างเปล่า ไม่มีข้อมูลจำลองเดิม)
+  // Meeting Records State (เริ่มต้นว่างเปล่า)
   const [meetingRecords, setMeetingRecords] = useState<MeetingRecord[]>([]);
 
   const [filterDate, setFilterDate] = useState<string>("");
@@ -73,7 +81,7 @@ export default function HomePreview() {
   const [activeRecordForExtract, setActiveRecordForExtract] = useState<MeetingRecord | null>(null);
   const [candidateTasks, setCandidateTasks] = useState<CandidateTask[]>([]);
 
-  // Action Items / Key Dates (เริ่มต้นว่างเปล่า ไม่มีข้อมูลจำลองเดิม)
+  // Action Items / Key Dates (เริ่มต้นว่างเปล่า)
   const [actionItems, setActionItems] = useState<ActionItem[]>([]);
 
   const [actionItemFilterDate, setActionItemFilterDate] = useState<string>("");
@@ -95,6 +103,37 @@ export default function HomePreview() {
   const mediaStreamRef = useRef<MediaStream | null>(null);
   const finalTranscriptRef = useRef<string>("");
 
+  // ตรวจสอบสถานะผู้ใช้: หากไม่ได้ล็อกอินไป /login หรือถ้ายังเป็น pending ให้ไป /pending-approval ทันที
+  useEffect(() => {
+    const checkAuthAndStatus = async () => {
+      setAuthLoading(true);
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+
+      if (!session) {
+        router.push("/login");
+        return;
+      }
+
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("status, role")
+        .eq("id", session.user.id)
+        .single();
+
+      if (!profile || profile.status !== "approved") {
+        router.push("/pending-approval");
+        return;
+      }
+
+      setAuthLoading(false);
+    };
+
+    checkAuthAndStatus();
+  }, [router, supabase]);
+
+  // โหลดข้อมูล LocalStorage
   useEffect(() => {
     const savedDepts = localStorage.getItem("relat3_departments");
     if (savedDepts) {
@@ -413,6 +452,11 @@ export default function HomePreview() {
     alert("คัดลอกข้อความสรุปการประชุมที่เกลาแล้วเรียบร้อย พร้อมส่งต่อ!");
   };
 
+  const handleSignOut = async () => {
+    await supabase.auth.signOut();
+    router.push("/login");
+  };
+
   const displayedActionItems = actionItemFilterDate
     ? actionItems.filter(
         (i) => i.startDate === actionItemFilterDate || i.dueDate === actionItemFilterDate
@@ -554,9 +598,18 @@ export default function HomePreview() {
     }
   };
 
+  // แสดงตัวโหลดขณะที่ระบบกำลังยืนยันสิทธิ์
+  if (authLoading) {
+    return (
+      <div className="min-h-screen bg-[#FDFBF7] flex items-center justify-center text-[#8C7A78] text-xs font-semibold">
+        กำลังตรวจสอบสิทธิ์การใช้งาน Workspace...
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-[#FDFBF7] p-6 md:p-10 text-[#4A3E3D]">
-      {/* Header พร้อมปุ่มลัด Task Dashboard และ Calendar */}
+      {/* Header พร้อมปุ่มลัด Task Dashboard, Calendar และปุ่มออกจากระบบ */}
       <header className="max-w-4xl mx-auto flex items-center justify-between border-b border-[#E8DFD8] pb-4 mb-6">
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-[#3A2D28]">Relate & Co.</h1>
@@ -588,6 +641,14 @@ export default function HomePreview() {
           >
             <span>⚙️</span>
             <span>แผนก</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={handleSignOut}
+            className="p-1.5 px-3 rounded-xl bg-[#FAF7F5] border border-[#E8DFD8] hover:bg-red-50 text-red-600 transition-all cursor-pointer shadow-sm text-xs font-semibold"
+          >
+            ออกจากระบบ
           </button>
         </div>
       </header>
@@ -1453,7 +1514,7 @@ export default function HomePreview() {
       {/* Modal คัดกรอง Action Items */}
       {activeRecordForExtract && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 z-[9999]">
-          <div className="bg-white rounded-2xl p-6 max-w-lg w-full shadow-2xl border border-[#EFE8E2]">
+          <div className="bg-white rounded-2xl p-6 max-lg w-full shadow-2xl border border-[#EFE8E2]">
             <div className="flex items-center justify-between pb-3 border-b border-[#F7F2EE] mb-4">
               <div>
                 <h3 className="text-base font-bold text-[#3A2D28] flex items-center gap-2">
